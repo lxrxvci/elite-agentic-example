@@ -40,6 +40,11 @@ jobs:
           python-version: ${{ inputs.python-version }}
           cache: pip
           cache-dependency-path: src/backend/pyproject.toml
+      - name: Ensure requirements.txt is in sync with pyproject.toml
+        run: |
+          pip install pip-tools
+          pip-compile --generate-hashes --output-file=src/backend/requirements.txt src/backend/pyproject.toml
+          git diff --exit-code src/backend/requirements.txt
       - run: pip install -e ".[dev]"
       - run: ruff check src tests
       - run: mypy src

@@ -28,3 +28,17 @@ def configure_tracing(service_name: str = "elite-backend") -> None:
 def get_tracer(name: str) -> trace.Tracer:
     """Return a tracer for the given module name."""
     return trace.get_tracer(name)
+
+
+def shutdown_tracing() -> None:
+    """Flush and shutdown the global tracer provider, if configured."""
+    provider = trace.get_tracer_provider()
+    if provider is None:
+        return
+
+    # SDK TracerProvider exposes force_flush/shutdown; the no-op provider does not.
+    try:
+        provider.force_flush(timeout_millis=5000)  # type: ignore[attr-defined]
+        provider.shutdown()  # type: ignore[attr-defined]
+    except Exception:
+        pass

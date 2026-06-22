@@ -24,7 +24,7 @@ services:
       target: production
     environment:
       ENV: development
-      DATABASE_URL: postgresql+psycopg2://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-elite_db}
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-elite_db}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required. Use a strong random value in production.}
       ALLOWED_ORIGINS: http://localhost:3000
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317

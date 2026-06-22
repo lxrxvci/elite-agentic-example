@@ -33,7 +33,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: staging
-      url: https://elite-backend-staging.fly.dev
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,7 +40,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         working-directory: src/backend
-        run: pip install -e .
+        run: pip install -r requirements.txt
       - name: Run migration
         working-directory: src/backend
         env:
@@ -58,7 +57,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://elite-backend.fly.dev
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,7 +64,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         working-directory: src/backend
-        run: pip install -e .
+        run: pip install -r requirements.txt
       - name: Backup reminder
         run: echo "Ensure a database backup has been taken before proceeding."
       - name: Run migration
