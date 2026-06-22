@@ -43,8 +43,8 @@ jobs:
       - name: Ensure requirements.txt is in sync with pyproject.toml
         run: |
           pip install pip-tools
-          pip-compile --generate-hashes --output-file=src/backend/requirements.txt src/backend/pyproject.toml
-          git diff --exit-code src/backend/requirements.txt
+          pip-compile --generate-hashes --output-file=requirements.txt pyproject.toml
+          git diff --exit-code requirements.txt
       - run: pip install -e ".[dev]"
       - run: ruff check src tests
       - run: mypy src
