@@ -56,7 +56,7 @@ jobs:
           fail-on-severity: high
 
       - name: Detect secrets
-        uses: trufflesecurity/trufflehog@v3.82.2
+        uses: trufflesecurity/trufflehog@v3.95.6
         with:
           path: ./
           base: main
