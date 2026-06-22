@@ -11,4 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo "Security scan placeholder"
+      - name: Run Semgrep (JavaScript/TypeScript SAST)
+        uses: docker://semgrep/semgrep:latest
+        with:
+          args: >
+            semgrep scan
+            --config p/javascript
+            --config p/typescript
+            --config p/react
+            --config p/security-audit
+            src/frontend src/backend
