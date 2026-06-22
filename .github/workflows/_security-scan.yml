@@ -5,7 +5,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
+  security-events: write
 
 jobs:
   scan:
@@ -13,8 +13,58 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: GitHub dependency review
-        uses: actions/dependency-review-action@v3
-        if: github.event_name == 'pull_request'
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          fail-on-severity: high
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies for SAST
+        working-directory: src/backend
+        run: pip install -e ".[dev]"
+
+      - name: Run Bandit (Python SAST)
+        working-directory: src/backend
+        run: bandit -r src -ll -ii
+
+      - name: Run Semgrep (JavaScript/TypeScript SAST)
+        uses: docker://semgrep/semgrep:latest
+        with:
+          args: >
+            semgrep scan
+            --config p/javascript
+            --config p/typescript
+            --config p/react
+            --config p/security-audit
+            src/frontend src/backend
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Detect secrets
+        uses: trufflesecurity/trufflehog@v3.82.2
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --only-verified
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
