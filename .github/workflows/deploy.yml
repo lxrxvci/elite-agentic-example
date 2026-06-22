@@ -70,6 +70,7 @@ jobs:
         with:
           name: frontend-build
           path: src/frontend/.next
+          include-hidden-files: true
 
   deploy-frontend-staging:
     needs: [build-frontend]
