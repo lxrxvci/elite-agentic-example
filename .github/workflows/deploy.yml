@@ -50,6 +50,7 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND_STAGING }}
           working-directory: ./src/backend
           vercel-args: --prod
+          vercel-version: latest
 
   build-frontend:
     runs-on: ubuntu-latest
@@ -94,6 +95,7 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_STAGING }}
           working-directory: ./src/frontend
           vercel-args: --prod
+          vercel-version: latest
 
   smoke-staging:
     needs: [deploy-backend-staging, deploy-frontend-staging]
