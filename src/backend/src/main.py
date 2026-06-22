@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 
 import structlog
@@ -16,18 +17,49 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.exceptions import add_exception_handlers
+from app.features import shutdown_feature_client
 from app.limiter import limiter
 from app.logging import configure_logging, get_logger
 from app.metrics import REQUEST_LATENCY, metrics_response
 from app.routers import auth, clients, invoices, me, projects, time_entries
-from app.tracing import configure_tracing
-from infrastructure.database import engine
-from infrastructure.models import Base
+from app.tracing import configure_tracing, shutdown_tracing
+from infrastructure.database import ping_database
 
+# Configure logging and tracing at import time so local development, Docker,
+# and serverless runtimes all have them available immediately.
 configure_logging(env=settings.env, log_level=settings.log_level)
 configure_tracing()
 
-app = FastAPI(title="Elite API", version="0.1.0")
+# Prometheus counters are per-process and not meaningful across Vercel's
+# serverless invocations. Disable them in production/serverless environments.
+_METRICS_ENABLED = os.getenv("METRICS_ENABLED", "").lower() not in {"0", "false", "no"}
+if settings.env == "production" or os.getenv("VERCEL") == "1":
+    _METRICS_ENABLED = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Initialize and cleanly shut down stateful resources.
+
+    Re-initializing logging/tracing here is idempotent. The main purpose is to
+    shut down background threads (Unleash poller, OpenTelemetry batch exporter)
+    before a serverless invocation ends.
+    """
+    configure_logging(env=settings.env, log_level=settings.log_level)
+    configure_tracing()
+
+    if settings.otel_exporter_otlp_endpoint:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.instrument_app(app)
+
+    yield
+
+    shutdown_feature_client()
+    shutdown_tracing()
+
+
+app = FastAPI(title="Elite API", version="0.1.0", lifespan=lifespan)
 app.state.limiter = limiter
 
 
@@ -84,11 +116,12 @@ async def observability_middleware(
         path=request.url.path,
         status_code=response.status_code,
     )
-    REQUEST_LATENCY.labels(
-        method=request.method,
-        path=request.url.path,
-        status_code=str(response.status_code),
-    ).observe(duration)
+    if _METRICS_ENABLED:
+        REQUEST_LATENCY.labels(
+            method=request.method,
+            path=request.url.path,
+            status_code=str(response.status_code),
+        ).observe(duration)
     response.headers["x-correlation-id"] = correlation_id
     return response
 
@@ -118,12 +151,6 @@ async def security_headers(request: Request, call_next: Callable[[Request], Any]
 
 add_exception_handlers(app)
 
-# Instrument FastAPI with OpenTelemetry when tracing is configured.
-if settings.otel_exporter_otlp_endpoint:
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-    FastAPIInstrumentor.instrument_app(app)
-
 app.include_router(me.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(clients.router, prefix="/api/v1")
@@ -139,14 +166,14 @@ def health() -> dict[str, str]:
 
 @app.get("/ready")
 def ready() -> dict[str, str]:
-    try:
-        Base.metadata.create_all(bind=engine)
+    if ping_database():
         return {"status": "ready"}
-    except Exception as exc:
-        return {"status": "not_ready", "detail": str(exc)}
+    return {"status": "not_ready"}
 
 
 @app.get("/metrics")
 def metrics() -> Response:
+    if not _METRICS_ENABLED:
+        return Response(status_code=404)
     data, content_type = metrics_response()
     return Response(content=data, media_type=content_type)

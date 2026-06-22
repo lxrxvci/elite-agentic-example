@@ -40,7 +40,7 @@ jobs:
     uses: ./.github/workflows/_ci-backend.yml
     with:
       python-version: "3.12"
-      database-url: postgresql+psycopg2://postgres:postgres@localhost:5432/elite_db
+      database-url: postgresql+psycopg://postgres:postgres@localhost:5432/elite_db
       secret-key: ci-secret-key
 
   infra:

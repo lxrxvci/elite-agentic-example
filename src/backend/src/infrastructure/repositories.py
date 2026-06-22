@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import builtins
 import uuid
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from sqlalchemy.orm import Session
 
@@ -25,7 +25,7 @@ from infrastructure import models
 T = TypeVar("T")
 
 
-class BaseRepository(Generic[T]):
+class BaseRepository[T]:
     def __init__(self, session: Session, tenant_id: uuid.UUID) -> None:
         self.session = session
         self.tenant_id = tenant_id

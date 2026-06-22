@@ -1,6 +1,6 @@
 """Initial freelancer domain
 
-Revision ID: 20250621_initial_freelancer_domain
+Revision ID: 20250621_initial_freelancer
 Revises:
 Create Date: 2026-06-21 01:41:00.000000
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "20250621_initial_freelancer_domain"
+revision: str = "20250621_initial_freelancer"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

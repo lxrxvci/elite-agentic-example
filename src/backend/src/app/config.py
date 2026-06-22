@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
-    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/elite_db"
+    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/elite_db"
     enabled_features: str = ""
 
     # Feature flag provider (Unleash). If URL is unset, the app falls back to
