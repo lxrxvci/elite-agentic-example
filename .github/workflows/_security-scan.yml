@@ -33,7 +33,7 @@ jobs:
         run: bandit -r src -ll -ii
 
       - name: Run Semgrep (JavaScript/TypeScript SAST)
-        uses: returntocorp/semgrep-action@v1
+        uses: semgrep/semgrep@v1
         with:
           config: >-
             p/javascript
