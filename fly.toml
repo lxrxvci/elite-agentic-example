@@ -1,0 +1,19 @@
+# Fly.io configuration for the Elite backend.
+# The app name and image are overridden in CI via --app and --image.
+app = "elite-backend"
+primary_region = "iad"
+
+[build]
+  image = "<IMAGE>"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

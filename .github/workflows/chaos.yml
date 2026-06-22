@@ -1,0 +1,51 @@
+name: Chaos Engineering
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Fly.io app to target"
+        required: true
+        default: "elite-backend-staging"
+      experiment:
+        description: "Experiment to run (restart, load)"
+        required: true
+        default: "restart"
+
+jobs:
+  chaos:
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Run chaos experiment
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          APP="${{ github.event.inputs.app }}"
+          EXPERIMENT="${{ github.event.inputs.experiment }}"
+          if [ "$EXPERIMENT" = "restart" ]; then
+            MACHINE=$(fly machine list --app "$APP" --json | python -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+            echo "Restarting machine $MACHINE on $APP"
+            fly machine restart "$MACHINE" --app "$APP"
+          else
+            echo "Experiment '$EXPERIMENT' is not yet automated; run it manually and capture results in the chaos runbook."
+          fi
+
+      - name: Verify health after chaos
+        run: |
+          sleep 10
+          curl --fail --retry 10 --retry-delay 5 "https://${{ github.event.inputs.app }}.fly.dev/health"
+
+      - name: Canary analysis
+        run: |
+          python scripts/canary_analysis.py --url "https://${{ github.event.inputs.app }}.fly.dev/health" --requests 50 --concurrency 5

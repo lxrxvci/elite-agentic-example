@@ -1,0 +1,279 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/elite-backend
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push backend image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/backend
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output image reference
+        id: image
+        run: echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance (SLSA)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  sign-backend-image:
+    needs: [build-backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image with Cosign
+        env:
+          IMAGE: ${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}
+        run: cosign sign --yes "$IMAGE"
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Attach SBOM
+        env:
+          IMAGE: ${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}
+        run: cosign attach sbom --sbom sbom.spdx.json --type spdx "$IMAGE"
+
+  deploy-backend-staging:
+    needs: [build-backend]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://elite-backend-staging.fly.dev
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Deploy backend to staging
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          sed 's|<IMAGE>|${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}|' fly.toml > fly.staging.toml
+          flyctl deploy --config fly.staging.toml --app elite-backend-staging --image ${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - working-directory: src/frontend
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: src/frontend/.next
+
+  deploy-frontend-preview:
+    needs: [build-frontend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      preview-url: ${{ steps.vercel.outputs.preview-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: src/frontend/.next
+      - name: Deploy to Vercel Preview
+        id: vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./src/frontend
+
+  deploy-frontend-staging:
+    needs: [build-frontend]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ steps.vercel.outputs.preview-url }}
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: src/frontend/.next
+      - name: Deploy to Vercel Staging
+        id: vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_STAGING || secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./src/frontend
+
+  smoke-staging:
+    needs: [deploy-backend-staging, deploy-frontend-staging]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke test staging
+        run: |
+          echo "Running smoke tests against staging..."
+          curl --fail --retry 5 --retry-delay 10 https://elite-backend-staging.fly.dev/health
+          curl --fail --retry 5 --retry-delay 10 ${{ needs.deploy-frontend-staging.outputs.preview-url }}
+
+  deploy-backend-production:
+    needs: [smoke-staging]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://elite-backend.fly.dev
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Deploy backend to production (bluegreen)
+        id: deploy-prod
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          sed 's|<IMAGE>|${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }}|' fly.toml > fly.prod.toml
+          flyctl deploy --config fly.prod.toml --app elite-backend --image ${{ needs.build-backend.outputs.image }}@${{ needs.build-backend.outputs.digest }} --strategy bluegreen
+
+  canary-analysis:
+    needs: [deploy-backend-production]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run canary analysis
+        run: |
+          echo "Running synthetic canary analysis against production..."
+          python scripts/canary_analysis.py --url https://elite-backend.fly.dev/health --requests 100 --concurrency 10 --max-error-rate 0.01 --max-latency-p99 0.5
+
+  deploy-frontend-production:
+    needs: [smoke-staging]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.vercel.outputs.preview-url }}
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: src/frontend/.next
+      - name: Deploy to Vercel Production
+        id: vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./src/frontend
+          vercel-args: --prod
+
+  smoke-production:
+    needs: [canary-analysis, deploy-frontend-production]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke test production
+        run: |
+          echo "Running smoke tests against production..."
+          curl --fail --retry 5 --retry-delay 10 https://elite-backend.fly.dev/health
+
+  rollback-backend-production:
+    needs: [deploy-backend-production, canary-analysis]
+    if: failure()
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+      - name: Rollback to previous release
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Rolling back to previous release..."
+          PREV_IMAGE=$(python -c "import json,sys; print(json.load(sys.stdin)[1]['imageRef'])" <<< "$(fly releases list --app elite-backend --json)")
+          flyctl deploy --app elite-backend --image "$PREV_IMAGE"

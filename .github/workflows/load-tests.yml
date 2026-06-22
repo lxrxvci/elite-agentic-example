@@ -1,0 +1,21 @@
+name: Load Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 1'
+
+env:
+  BASE_URL: ${{ vars.LOAD_TEST_BASE_URL || 'http://localhost:8000' }}
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+      - name: Run load tests
+        run: k6 run tests/perf/load.js
+        env:
+          BASE_URL: ${{ env.BASE_URL }}

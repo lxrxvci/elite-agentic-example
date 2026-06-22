@@ -1,0 +1,29 @@
+groups:
+  - name: elite-api
+    rules:
+      - alert: HighErrorRate
+        expr: rate(elite_request_duration_seconds_count{status_code=~"5.."}[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on Elite API"
+          description: "Error rate is above 1% for more than 5 minutes."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(elite_request_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on Elite API"
+          description: "p95 latency is above 500ms for more than 5 minutes."
+
+      - alert: ServiceDown
+        expr: up{job="elite-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elite backend is down"
+          description: "The backend health endpoint has been unreachable for more than 1 minute."

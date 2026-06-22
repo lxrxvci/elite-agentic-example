@@ -1,0 +1,53 @@
+name: CI — Backend
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        required: true
+        type: string
+      database-url:
+        required: true
+        type: string
+      secret-key:
+        required: true
+        type: string
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: elite_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+          cache-dependency-path: src/backend/pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: mypy src
+      - run: alembic upgrade head
+        env:
+          DATABASE_URL: ${{ inputs.database-url }}
+          SECRET_KEY: ${{ inputs.secret-key }}
+      - run: pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+        env:
+          DATABASE_URL: ${{ inputs.database-url }}
+          SECRET_KEY: ${{ inputs.secret-key }}

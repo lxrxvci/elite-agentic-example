@@ -1,0 +1,990 @@
+openapi: 3.0.3
+info:
+  title: Freelancer SaaS API
+  description: |
+    API contract for the freelancer time-to-payment dashboard.
+    This version supports Bet 1 — manual time capture and invoice creation from unbilled hours.
+  version: 0.1.0
+  contact:
+    name: Tech Lead
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Users
+    description: Current user and tenant context.
+  - name: Clients
+    description: Client master data.
+  - name: Projects
+    description: Project master data.
+  - name: Time Entries
+    description: Billable time capture and management.
+  - name: Invoices
+    description: Invoice lifecycle.
+
+paths:
+  /me:
+    get:
+      summary: Get current user and tenant
+      operationId: getCurrentUser
+      tags: [Users]
+      responses:
+        "200":
+          description: Current user profile and tenant context.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /clients:
+    get:
+      summary: List clients
+      operationId: listClients
+      tags: [Clients]
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: Paginated list of clients.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedClients"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      summary: Create client
+      operationId: createClient
+      tags: [Clients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientCreate"
+      responses:
+        "201":
+          description: Client created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /projects:
+    get:
+      summary: List projects
+      operationId: listProjects
+      tags: [Projects]
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: Paginated list of projects.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedProjects"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      summary: Create project
+      operationId: createProject
+      tags: [Projects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Project created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /time-entries:
+    get:
+      summary: List time entries
+      operationId: listTimeEntries
+      tags: [Time Entries]
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TimeEntryStatus"
+        - name: from
+          in: query
+          required: false
+          description: Inclusive start date (ISO 8601).
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: Inclusive end date (ISO 8601).
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: Paginated list of time entries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedTimeEntries"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      summary: Create time entry
+      operationId: createTimeEntry
+      tags: [Time Entries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimeEntryCreate"
+      responses:
+        "201":
+          description: Time entry created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeEntry"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /time-entries/{timeEntryId}:
+    parameters:
+      - name: timeEntryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get a time entry
+      operationId: getTimeEntry
+      tags: [Time Entries]
+      responses:
+        "200":
+          description: Time entry details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      summary: Update a time entry
+      operationId: updateTimeEntry
+      tags: [Time Entries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimeEntryUpdate"
+      responses:
+        "200":
+          description: Time entry updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeEntry"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /invoices:
+    get:
+      summary: List invoices
+      operationId: listInvoices
+      tags: [Invoices]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/InvoiceStatus"
+        - name: client_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+      responses:
+        "200":
+          description: Paginated list of invoices.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedInvoices"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      summary: Create draft invoice from time entries
+      operationId: createInvoice
+      tags: [Invoices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceCreate"
+      responses:
+        "201":
+          description: Draft invoice created and time entries marked as billed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /invoices/{invoiceId}:
+    parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get an invoice
+      operationId: getInvoice
+      tags: [Invoices]
+      responses:
+        "200":
+          description: Invoice details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /invoices/{invoiceId}/mark-paid:
+    parameters:
+      - name: invoiceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Mark an invoice as paid
+      operationId: markInvoicePaid
+      tags: [Invoices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceMarkPaid"
+      responses:
+        "200":
+          description: Invoice marked as paid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC access token issued by the configured identity provider.
+
+  parameters:
+    PageLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PageOffset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      example: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          pattern: '^-?\d+(\.\d{1,2})?$'
+          example: "250.00"
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          example: "USD"
+
+    CurrentUser:
+      type: object
+      required: [id, email, name, tenant]
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        email:
+          type: string
+          format: email
+          example: "freelancer@example.com"
+        name:
+          type: string
+          example: "Maya Chen"
+        tenant:
+          $ref: "#/components/schemas/Tenant"
+
+    Tenant:
+      type: object
+      required: [id, name, default_currency]
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          example: "Maya Chen Design"
+        default_currency:
+          type: string
+          example: "USD"
+        default_hourly_rate:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+          example: "150.00"
+
+    Client:
+      type: object
+      required: [id, tenant_id, name, currency, created_at, updated_at]
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        tenant_id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          example: "Acme Corp"
+        email:
+          type: string
+          format: email
+          example: "billing@acme.example"
+        currency:
+          type: string
+          example: "USD"
+        default_hourly_rate:
+          type: string
+          example: "150.00"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ClientCreate:
+      type: object
+      required: [name, currency]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        default_hourly_rate:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+
+    PaginatedClients:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Client"
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    Project:
+      type: object
+      required: [id, tenant_id, client_id, name, created_at, updated_at]
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        tenant_id:
+          $ref: "#/components/schemas/UUID"
+        client_id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          example: "Website Redesign"
+        rounding_minutes:
+          type: integer
+          minimum: 1
+          default: 15
+          example: 15
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProjectCreate:
+      type: object
+      required: [client_id, name]
+      properties:
+        client_id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        rounding_minutes:
+          type: integer
+          minimum: 1
+          default: 15
+
+    PaginatedProjects:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    TimeEntryStatus:
+      type: string
+      enum: [unbilled, billed, written_off]
+      example: unbilled
+
+    TimeEntry:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - client_id
+        - project_id
+        - description
+        - duration_minutes
+        - rounded_minutes
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        tenant_id:
+          $ref: "#/components/schemas/UUID"
+        client_id:
+          $ref: "#/components/schemas/UUID"
+        project_id:
+          $ref: "#/components/schemas/UUID"
+        invoice_id:
+          $ref: "#/components/schemas/UUID"
+          nullable: true
+        description:
+          type: string
+          example: "Revised homepage hero copy"
+        duration_minutes:
+          type: integer
+          minimum: 0
+          example: 20
+        rounded_minutes:
+          type: integer
+          minimum: 0
+          example: 15
+        status:
+          $ref: "#/components/schemas/TimeEntryStatus"
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TimeEntryCreate:
+      type: object
+      required: [client_id, project_id, description]
+      description: |
+        Either `duration_minutes` or both `started_at` and `ended_at` must be provided.
+        If `duration_minutes` is omitted, it is computed from the timestamps.
+        `rounded_minutes` is computed server-side using the tenant/project rounding rule.
+      properties:
+        client_id:
+          $ref: "#/components/schemas/UUID"
+        project_id:
+          $ref: "#/components/schemas/UUID"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: "Revised homepage hero copy"
+        duration_minutes:
+          type: integer
+          minimum: 0
+          example: 20
+        started_at:
+          type: string
+          format: date-time
+          example: "2026-06-21T09:00:00Z"
+        ended_at:
+          type: string
+          format: date-time
+          example: "2026-06-21T09:20:00Z"
+
+    TimeEntryUpdate:
+      type: object
+      properties:
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        duration_minutes:
+          type: integer
+          minimum: 0
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+
+    PaginatedTimeEntries:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeEntry"
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    InvoiceStatus:
+      type: string
+      enum: [draft, sent, paid, overdue, cancelled]
+      example: draft
+
+    InvoiceLineItem:
+      type: object
+      required: [id, description, quantity, rate, amount, time_entry_ids]
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        description:
+          type: string
+          example: "Website redesign — 2.50 hours"
+        quantity:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+          example: "2.50"
+        rate:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+          example: "150.00"
+        amount:
+          $ref: "#/components/schemas/Money"
+        time_entry_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/UUID"
+
+    Invoice:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - client_id
+        - status
+        - issue_date
+        - due_date
+        - subtotal
+        - total
+        - line_items
+        - created_at
+        - updated_at
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        tenant_id:
+          $ref: "#/components/schemas/UUID"
+        client_id:
+          $ref: "#/components/schemas/UUID"
+        status:
+          $ref: "#/components/schemas/InvoiceStatus"
+        issue_date:
+          type: string
+          format: date
+          example: "2026-06-21"
+        due_date:
+          type: string
+          format: date
+          example: "2026-07-21"
+        subtotal:
+          $ref: "#/components/schemas/Money"
+        tax_amount:
+          $ref: "#/components/schemas/Money"
+        total:
+          $ref: "#/components/schemas/Money"
+        notes:
+          type: string
+          example: "Net 30. Thank you!"
+        line_items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineItem"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    InvoiceCreate:
+      type: object
+      required: [client_id, time_entry_ids, issue_date, due_date]
+      properties:
+        client_id:
+          $ref: "#/components/schemas/UUID"
+        time_entry_ids:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/UUID"
+        issue_date:
+          type: string
+          format: date
+          example: "2026-06-21"
+        due_date:
+          type: string
+          format: date
+          example: "2026-07-21"
+        notes:
+          type: string
+          maxLength: 2000
+        idempotency_key:
+          type: string
+          description: Client-generated key to prevent duplicate invoice creation on retries.
+          maxLength: 255
+
+    InvoiceMarkPaid:
+      type: object
+      required: [payment_method]
+      properties:
+        payment_method:
+          type: string
+          enum: [bank_transfer, card, cash, check, other]
+        paid_at:
+          type: string
+          format: date-time
+          description: Defaults to current server time if omitted.
+
+    PaginatedInvoices:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    ProblemDetail:
+      type: object
+      required: [type, title, status]
+      description: RFC 9457 Problem Details.
+      properties:
+        type:
+          type: string
+          format: uri
+          example: "https://api.example.com/errors/not-found"
+        title:
+          type: string
+          example: "Resource not found"
+        status:
+          type: integer
+          example: 404
+        detail:
+          type: string
+          example: "No invoice exists with the requested ID."
+        instance:
+          type: string
+          format: uri
+          example: "/api/v1/invoices/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+
+    ValidationErrorDetail:
+      type: object
+      required: [pointer, message]
+      properties:
+        pointer:
+          type: string
+          description: JSON Pointer to the offending field.
+          example: "/time_entry_ids"
+        message:
+          type: string
+          example: "At least one time entry is required."
+
+    ValidationProblemDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProblemDetail"
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: array
+              items:
+                $ref: "#/components/schemas/ValidationErrorDetail"
+
+  responses:
+    Unauthorized:
+      description: Authentication required or token invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+          example:
+            type: "https://api.example.com/errors/unauthorized"
+            title: "Unauthorized"
+            status: 401
+            detail: "Valid bearer token required."
+
+    Forbidden:
+      description: Authenticated user cannot access this resource.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+          example:
+            type: "https://api.example.com/errors/forbidden"
+            title: "Forbidden"
+            status: 403
+            detail: "Time entry does not belong to the current tenant."
+
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+          example:
+            type: "https://api.example.com/errors/not-found"
+            title: "Not found"
+            status: 404
+            detail: "The requested resource was not found."
+
+    Conflict:
+      description: Request conflicts with current state.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+          example:
+            type: "https://api.example.com/errors/conflict"
+            title: "Conflict"
+            status: 409
+            detail: "One or more time entries are already billed."
+
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ValidationProblemDetail"
+          example:
+            type: "https://api.example.com/errors/validation-error"
+            title: "Validation error"
+            status: 400
+            detail: "One or more fields failed validation."
+            errors:
+              - pointer: "/duration_minutes"
+                message: "Must be a non-negative integer."
+
+    UnprocessableEntity:
+      description: Semantic validation failed (e.g., time entries belong to a different client).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+          example:
+            type: "https://api.example.com/errors/unprocessable-entity"
+            title: "Unprocessable entity"
+            status: 422
+            detail: "All time entries must belong to the invoice client."
+
+    InternalServerError:
+      description: Unexpected server error.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+          example:
+            type: "https://api.example.com/errors/internal-server-error"
+            title: "Internal server error"
+            status: 500
+            detail: "An unexpected error occurred. Please try again later."

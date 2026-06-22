@@ -1,0 +1,79 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: elite-app
+  title: Elite Freelancer Dashboard
+  description: A SaaS dashboard that helps freelancers track time, invoice clients, and get paid faster.
+  annotations:
+    github.com/project-slug: "owner/repo"
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - nextjs
+    - fastapi
+    - postgresql
+    - typescript
+    - python
+spec:
+  type: website
+  lifecycle: production
+  owner: user:default/product-squad
+  system: elite-platform
+  dependsOn:
+    - resource:default/elite-db
+    - component:default/elite-backend
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: elite-backend
+  title: Elite Backend API
+  description: FastAPI backend providing REST API for the freelancer dashboard.
+  tags:
+    - fastapi
+    - python
+    - postgresql
+spec:
+  type: service
+  lifecycle: production
+  owner: user:default/product-squad
+  system: elite-platform
+  providesApis:
+    - api:default/elite-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: elite-api
+  title: Elite API
+  description: OpenAPI REST API for freelancer dashboard operations.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: user:default/product-squad
+  system: elite-platform
+  definition:
+    $text: ./openapi.yaml
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: elite-db
+  title: Elite PostgreSQL Database
+  description: Primary transactional database for the Elite application.
+  tags:
+    - postgresql
+    - database
+spec:
+  type: database
+  lifecycle: production
+  owner: user:default/platform-team
+  system: elite-platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: elite-platform
+  title: Elite Platform
+  description: Internal platform and shared services for Elite products.
+spec:
+  owner: user:default/platform-team

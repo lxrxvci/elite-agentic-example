@@ -1,0 +1,60 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "DORA Metrics",
+    "tags": ["elite", "dora"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Deployment Frequency",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "elite_deployments_total",
+            "legendFormat": "Deployments"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "Lead Time for Changes",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "elite_lead_time_seconds",
+            "legendFormat": "Median Lead Time"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 }
+      },
+      {
+        "id": 3,
+        "title": "Change Failure Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "elite_change_failure_rate",
+            "legendFormat": "CFR"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 }
+      },
+      {
+        "id": 4,
+        "title": "Failed Deployment Recovery Time",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "elite_recovery_time_seconds",
+            "legendFormat": "MTTR"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 }
+      }
+    ],
+    "time": { "from": "now-7d", "to": "now" },
+    "schemaVersion": 36
+  }
+}
