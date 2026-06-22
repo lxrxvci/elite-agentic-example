@@ -47,3 +47,17 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.infra == 'true' }}
     uses: ./.github/workflows/_ci-infra.yml
+
+  required:
+    name: CI required checks
+    needs: [changes, frontend, backend, infra]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI results
+        run: |
+          if [ "${{ needs.frontend.result }}" = "failure" ] || [ "${{ needs.backend.result }}" = "failure" ] || [ "${{ needs.infra.result }}" = "failure" ]; then
+            echo "One or more CI jobs failed."
+            exit 1
+          fi
+          echo "All required CI checks passed or were skipped."
