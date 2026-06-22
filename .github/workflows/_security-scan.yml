@@ -5,12 +5,33 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  pull-requests: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies for SAST
+        working-directory: src/backend
+        run: pip install -e ".[dev]"
+
+      - name: Run Bandit (Python SAST)
+        working-directory: src/backend
+        run: bandit -r src -ll -ii
+
       - name: Run Semgrep (JavaScript/TypeScript SAST)
         uses: docker://semgrep/semgrep:latest
         with:
