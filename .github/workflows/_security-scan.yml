@@ -18,9 +18,12 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: python, javascript
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
