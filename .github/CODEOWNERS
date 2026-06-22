@@ -1,13 +1,13 @@
 # Default reviewers for the entire repository.
-# Replace @lxrxcvi with the actual GitHub team or usernames for your squad.
-* @lxrxcvi
+# Replace @lxrxvci with the actual GitHub team or usernames for your squad.
+* @lxrxvci
 
 # Backend changes
-/src/backend/ @lxrxcvi
+/src/backend/ @lxrxvci
 
 # Frontend changes
-/src/frontend/ @lxrxcvi
+/src/frontend/ @lxrxvci
 
 # Infrastructure and platform engineering
-/infra/ @lxrxcvi
-/.github/workflows/ @lxrxcvi
+/infra/ @lxrxvci
+/.github/workflows/ @lxrxvci
