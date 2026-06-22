@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   scan:
@@ -12,10 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect secrets
-        uses: trufflesecurity/trufflehog@v3.82.2
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
-          path: ./
-          base: main
-          head: HEAD
-          extra_args: --only-verified
+          languages: python, javascript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
