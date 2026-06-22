@@ -25,7 +25,7 @@ jobs:
             --repo "$REPO" \
             --days 30 \
             --output dora-metrics.prom
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dora-metrics
           path: dora-metrics.prom
