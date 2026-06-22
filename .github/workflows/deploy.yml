@@ -39,6 +39,8 @@ jobs:
       name: staging
       url: ${{ steps.vercel.outputs.preview-url }}
     if: github.ref == 'refs/heads/main'
+    outputs:
+      preview-url: ${{ steps.vercel.outputs.preview-url }}
     steps:
       - uses: actions/checkout@v4
       - name: Deploy backend to Vercel Staging
@@ -80,6 +82,8 @@ jobs:
       name: staging
       url: ${{ steps.vercel.outputs.preview-url }}
     if: github.ref == 'refs/heads/main'
+    outputs:
+      preview-url: ${{ steps.vercel.outputs.preview-url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
