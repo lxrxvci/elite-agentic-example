@@ -55,13 +55,13 @@ jobs:
       - name: Run migrations
         working-directory: src/backend
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/elite_db
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/elite_db
           SECRET_KEY: ci-secret-key
         run: alembic upgrade head
       - name: Start backend
         working-directory: src/backend
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/elite_db
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/elite_db
           SECRET_KEY: ci-secret-key
           ENV: development
         run: |
@@ -75,6 +75,6 @@ jobs:
       - name: Run provider verification
         working-directory: src/backend
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/elite_db
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/elite_db
           SECRET_KEY: ci-secret-key
         run: pytest tests/contracts/
