@@ -52,7 +52,7 @@ jobs:
           exit-code: '1'
 
       - name: GitHub dependency review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v3
         if: github.event_name == 'pull_request'
         with:
           fail-on-severity: high
