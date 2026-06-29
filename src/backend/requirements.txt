@@ -892,9 +892,9 @@ opentelemetry-semantic-conventions==0.63b1 \
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-sdk
-opentelemetry-util-http==0.63b1 \
-    --hash=sha256:6284194028c59cd439f8acfe388145069a6127f11dc077e1344a2094adacc3f8 \
-    --hash=sha256:ba1268f00922ee522dba2ae38458060f99486e7385a8056985901ca9685adfff
+opentelemetry-util-http==0.64b0 \
+    --hash=sha256:8a86a220dbfc56d736f47f1e5c4e7932a21fcf69052312e1bcf166444dc79322 \
+    --hash=sha256:c1e5350d25507c1afcd6076cf9ac062485a0a4f79cd9971366996fd3056bacdb
     # via
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
