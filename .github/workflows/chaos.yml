@@ -25,7 +25,7 @@ jobs:
           python-version: "3.12"
 
       - name: Setup Flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@1.5
+        uses: superfly/flyctl-actions/setup-flyctl@1.6
 
       - name: Run chaos experiment
         env:
